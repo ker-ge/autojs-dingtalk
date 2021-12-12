@@ -10,6 +10,8 @@ let config = {
   "stopDingtalk": "强行停止", // 关闭钉钉后台运行、不同手机不一样的按钮、强行停止、结束运行、关闭
   "randomMin": 0, // 随机最小数
   "randomMax": 10, // 随机最大数
+  "apiUrl": "http://apis.juhe.cn/fapig/calendar/day.php",
+  "apiKey": "",
 };
 
 let keepScreenOnMinutes = 5; // 保存常亮时间
@@ -66,11 +68,24 @@ let $$init = {
 
     // 判断是否是放假
     function isHoliday() {
-      let nowday = NowTime.getDay(); // 0-周日，6-周六
-      if (nowday == 0 || nowday == 6) {
-        exit(); // 周末直接停止脚本
+      // let nowday = NowTime.getDay(); // 0-周日，6-周六
+      // if (nowday == 0 || nowday == 6) {
+      //   exit(); // 周末直接停止脚本
+      // }
+      let year = NowTime.getFullYear();
+      let month = NowTime.getMonth() + 1;
+      let day = NowTime.getDate();
+      day = day > 9 ? day : '0' + day;
+      let dater = year + "-" + month + "-" + day;
+      let url = config.apiUrl + "?date=" + dater + "&key=" + config.apiKey;
+      let res = http.get(url);
+      // let data = res.body.json();
+      // console.log(data);
+      let statusDesc = res.body.json()['result']['statusDesc'];
+      if (statusDesc != '工作日') {
+        toastLog('非工作日，停止脚本');
+        engines.myEngine().forceStop(); // 非工作日直接停止脚本
       }
-      // 节假日需要用接口
     }
 
     // 随机延迟
