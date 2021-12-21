@@ -6,8 +6,11 @@ let NowTime = new Date(); //当前时间不戳
 
 //读取配置
 let config = {
+  "appName": "钉钉",
+  "stopAppBtn": "强行停止", // 关闭后台运行按钮、不同手机不一样的按钮、强行停止、结束运行、关闭
+  "stopAppConfirmBtn": "确定", // 确认关闭后台运行按钮
   "workTitle": "工作台",
-  "stopDingtalk": "强行停止", // 关闭钉钉后台运行、不同手机不一样的按钮、强行停止、结束运行、关闭
+  "kaoQinTitle": "考勤打卡",
   "randomMin": 0, // 随机最小数
   "randomMax": 5, // 随机最大数
   "apiUrl": "http://apis.juhe.cn/fapig/calendar/day.php",
@@ -16,12 +19,12 @@ let config = {
 
 let keepScreenOnMinutes = 15; // 保存常亮时间
 let sleepTime = 5 * 1000; // 暂停的时间
-let sleepTime_ding = 10 * 1000; // 钉钉暂停的时间
+let sleepTime_app = 10 * 1000; // 钉钉暂停的时间
 
 let $$init = {
   start() {
     // 判断是否是放假
-    isHoliday();
+    // isHoliday();
 
     return wakeUp();
 
@@ -50,10 +53,10 @@ let $$init = {
 
     // 流程操作链
     function fullChain() {
-      // 先关闭钉钉
-      closeDingtalk();
-      // 打开钉钉
-      openDingtalk();
+      // 先关闭
+      closeApp();
+      // 再打开
+      openApp();
       // 进入考勤
       inKaoqin();
       // 进入打卡页
@@ -84,77 +87,95 @@ let $$init = {
       }
     }
 
-    // 获取随机睡觉的时间
-    function getRangSleep() {
-      // 进入钉钉就随机延迟
+    // 随机延迟
+    function randomSleep() {
       let randNum = random(config.randomMin, config.randomMax);
       toastLog("随机延迟" + randNum + "分钟");
-      return randNum * 60 * 1000;
+      sleep(randNum * 60 * 1000); // 随机睡觉的数字,分钟为单位
     }
 
-    // 关闭钉钉（这个关闭操作根据自己设备具体情况配置）
-    function closeDingtalk() {
+    // 关闭软件（这个关闭操作根据自己设备具体情况配置）
+    function closeApp() {
       sleep(sleepTime);
-      toastLog("先关闭钉钉APP ing");
-      let packageName = app.getPackageName("钉钉");
-      if (!packageName) return postMessage("没有找到可以打开的钉钉");
+      toastLog("先关闭" + config.appName + "APP ing");
+      let packageName = app.getPackageName(config.appName);
+      if (!packageName) return postMessage("没有找到可以打开的" + config.appName);
       app.openAppSetting(packageName);
-      text("钉钉").waitFor();
+      text(config.appName).waitFor();
       sleep(sleepTime);
-      click(config.stopDingtalk);
+      click(config.stopAppBtn);
       sleep(sleepTime);
-      click("确定");
+      click(config.stopAppConfirmBtn);
       sleep(sleepTime);
       home(); // 回到桌面
     }
 
-    // 打开钉钉
-    function openDingtalk() {
+    // 打开软件
+    function openApp() {
       sleep(sleepTime);
-      toastLog("在启动钉钉APP ing");
-      let res = app.launchApp("钉钉");
-      if (!res) return postMessage("没有找到可以打开的钉钉");
+      toastLog("在启动" + config.appName + "APP ing");
+      let res = app.launchApp(config.appName);
+      if (!res) return postMessage("没有找到可以打开的" + config.appName);
+      randomSleep(); // 随机睡觉
     }
 
     //进入考勤页面
     function inKaoqin() {
-      let rangSleepTime = getRangSleep();
-      if (rangSleepTime < sleepTime_ding) rangSleepTime = sleepTime + sleepTime_ding; // 防止出现0的情况
-      sleep(rangSleepTime);
-      workBtn = text('工作台').findOne(10000); // 找到工作台
-      workBtn.parent().parent().click(); // 点击工作台
-      sleep(sleepTime_ding);
-      toastLog("进入工作台");
-      dkBtn = text("考勤打卡").findOne(10000); // 找到考勤打卡
-      dkBtn.click(); // 点击考勤打卡
+      sleep(sleepTime_app); // 有时候进入比较慢
+      clickMessage(config.workTitle);
+      toastLog("点击" + config.workTitle);
+      sleep(sleepTime_app); // 有时候进入比较慢
+      clickMessage(config.kaoQinTitle);
+      toastLog("点击" + config.kaoQinTitle);
+      sleep(sleepTime_app); // 有时候进入比较慢
     }
 
     //点击打卡
     function inDaka() {
-      sleep(sleepTime_ding);
-      toastLog("进入打卡页");
-      let text1 = "外勤打卡";
-      dcard = text(text1).findOne(10000); // 找到外勤打卡
-      dcard.click(); // 点击外勤打卡
+      sleep(sleepTime_app); // 有时候进入比较慢
+      let text = "外勤打卡";
+      clickMessage(text);
+      sleep(sleepTime_app); // 有时候进入比较慢
     }
 
     // 确认定位打卡
     function confirmDaka() {
-      sleep(sleepTime_ding);
-      let scope, x, y;
-      let text1 = "0/1000";
-      scope = text(text1).findOne().bounds(); // 找到0/1000的位置,方便计算出打卡的按钮位置
-      x = scope.centerX();
-      y = scope.centerY();
-      // console.log(text1, x, y);
-      // console.log(device.width, device.height);
-      // X轴直接取中间,Y轴需要计算,在0/1000的下方100
-      x = device.width * 0.5;
-      y = y + 100;
-      console.log('打卡坐标：', x, y);
-      click(x, y);
-      sleep(sleepTime_ding);
-      postMessage('打卡成功');
+      sleep(sleepTime_app); // 有时候进入比较慢
+      let text = "外勤打卡";
+      clickMessage(text);
+      sleep(sleepTime_app); // 有时候进入比较慢
+      return postMessage('打卡成功');
+      // let scope, x, y;
+      // let text1 = "0/1000";
+      // scope = text(text1).findOne().bounds(); // 找到0/1000的位置,方便计算出打卡的按钮位置
+      // x = scope.centerX();
+      // y = scope.centerY();
+      // // console.log(text1, x, y);
+      // // console.log(device.width, device.height);
+      // // X轴直接取中间,Y轴需要计算,在0/1000的下方100
+      // x = device.width * 0.5;
+      // y = y + 100;
+      // console.log('打卡坐标：', x, y);
+      // click(x, y);
+      // sleep(sleepTime_ding);
+      // postMessage('打卡成功');
+    }
+
+    //根据控件文字点击，如果点击失败，则说明打卡流程无法正常进行，结束脚本运行
+    function clickMessage(message) {
+      var n = 3;
+      var logo = false;
+      while (n--) {
+        if (click(message)) {
+          logo = true;
+          break;
+        }
+        sleep(sleepTime);
+      }
+      if (logo == false) {
+        console.error("点击" + message + "出错");
+        exit();
+      }
     }
 
     function postMessage(message) {
